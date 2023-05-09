@@ -1,0 +1,315 @@
+---
+title: "STAT632_final_project_code_appendix"
+author: "Shonushka S, Megan M, Bianca C"
+date: "May 7, 2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Code Appendix for STAT 632 Final Project
+
+**Load the Necessary Libraries & Data Set**
+
+```{r data_import, include = TRUE}
+library(ggplot2)
+library(dplyr)
+library(Stat2Data)
+library(cowplot)
+library(pROC)
+library(car)
+data(BirdNest)
+#head(BirdNest)
+```
+
+**Cleaning the data set**
+
+```{r cleaning, results = 'hide', echo = TRUE}
+# removed observation without entries
+nests <- na.omit(BirdNest)
+
+# change Closed. to factor
+nests$clo<-as.factor(nests$Closed.)
+```
+
+**For data summaries**
+
+```{r stat_summary, results = 'hide', echo = TRUE}
+# summary statistics for numerical variables
+nests %>%
+  summarise(meanLength = round(mean(Length), 2),
+            sdLength = round(sd(Length), 2),
+            meanEggs = round(mean(No.eggs), 2),
+            sdEggs = round(sd(No.eggs), 2),
+            meanIncu = round(mean(Incubate), 2),
+            sdIncu = round(sd(Incubate), 2),
+            meanNest = round(mean(Nestling), 2),
+            sdNest = round(sd(Nestling), 2),
+            meanCare = round(mean(Totcare), 2),
+            sdCare = round(sd(Totcare), 2))
+
+# count number of observations in Color and Closed
+nests %>% count(Color == 0)
+nests %>% count(Closed. == 0)
+```
+
+**For histogram plots**
+
+```{r hist_plots, results = FALSE, show.fig = 'hide'}
+
+#library(cowplot)
+bird_colors <- c("#fda630", "#f86734", "#e867ad", "#9b35dd",
+                 "#7968f0", "#3e45a2", "#161b61", "#af2405", "#d1d1d1")
+
+# NUMBER OF EGGS
+p1 <- ggplot(nests, aes(x = No.eggs)) +
+  geom_histogram(binwidth = 1, fill = "#fda630", color = "white", alpha = 0.8) +
+  labs(x = "Number of Eggs", y = "Count") +
+  theme_classic() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12))
+
+
+# BODY LENGTH
+p2 <- ggplot(nests, aes(x = Length)) +
+  geom_histogram(binwidth = 2.5, fill = "#f86734", color = "white", alpha = 0.6) +
+  labs(x = "Mean Body Length", y = "Count") +
+  theme_classic() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12))
+
+# INCUABTE TIME
+p3<- ggplot(nests, aes(x = Incubate)) +
+  geom_histogram(binwidth = 1, fill = "#e867ad", color = "white", alpha = 0.4) +
+  labs(x = "Mean Incubation (days)", y = "Count") +
+  theme_classic() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12))
+
+# NESTIING TIME
+p4 <- ggplot(nests, aes(x = Nestling)) +
+  geom_histogram(binwidth = 1, fill = "#9b35dd", color = "white", alpha = 0.3) +
+  labs(x = "Mean Nestling (days)", y = "Count") +
+  theme_classic() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12))
+
+# plot all the histograms
+histos <- plot_grid(p1, p2, p3, p4)
+ggdraw(add_sub(histos, "Figure 1: The variables length, 
+               number of eggs, and incubation all have a normal 
+               distribution with a right-skew.", size = 8))
+```
+
+**For barplots**
+
+```{r bar_plots, results = 'hide', show.fig = 'hide'}
+# LOCATION
+loc_num <- nests %>% count(Location)
+loc_count <- loc_num[,2]
+
+b1 <- ggplot(nests, aes(x = Location, fill = "#af2405")) +
+  geom_bar(alpha = 0.7) +
+  theme_classic() +
+  labs(x = "Nest Location", y = "Count") +
+  annotate("text", x = 1:9, y = loc_count + 1, label = loc_count) +
+  theme(axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 12),
+        legend.position = "none")
+
+
+# NEST TYPE
+type_num <- nests %>% count(Nesttype)
+type_count <- type_num[,2]
+
+b2 <- ggplot(nests, aes(x = Nesttype, fill = clo)) +
+  geom_bar(alpha = 0.8) +
+  theme_classic() +
+  labs(x = "Nest Type", y = "Count") +
+  annotate("text", x = 1:7, y = type_count + 1.2, label = type_count) +
+  theme(axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 12),
+        legend.position = c(0.8,0.8)) +
+  scale_fill_manual(values = c("#7968f0", "#161b61"), name = "Type",
+                    labels = c("Open", "Closed"))
+
+
+# plot the bar charts
+bars <- plot_grid(b1, b2)
+ggdraw(add_sub(bars, "Firgure 2: There is an under representation of certain nest 
+               locations in this data set, and an over representation of cup type nests.
+               \nThis uneven representation may affect the final model.", size = 8))
+```
+
+**Full Multiple Logistic Regression Model**
+
+```{r full_mlr_mod}
+# Note that neither clo has been coded as factor
+glm1 <- glm(clo ~ Length + No.eggs + Color + Incubate + Nestling,
+           data = nests, family = binomial)
+summary(glm1)
+
+AIC(glm1)
+```
+
+**Step-wise Selection**
+
+```{r stepwise_selection2}
+# stepwise selection of variables
+fbm <- step(glm1, trace = FALSE)
+summary(fmb)
+```
+
+**Final Multiple Logistic Regression Model**
+
+```{r final_mod, echo = TRUE}
+# define the reduced model
+glm2 <- glm(clo ~ Length + Nestling + No.eggs, data=nests, family=binomial)
+summary(glm2)
+
+# compare the AIC for full and reduced model
+AIC(glm1, glm2)
+```
+
+**Logistic Regression Plots**
+
+```{r log_reg_plots, results = 'hide', show.fig = 'hide'}
+# graph for Length and Closed
+m1 <- ggplot(nests, aes(Length, Closed.)) + 
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), 
+              se=F, color="blue") +
+  xlab("Length of bird's body") +
+  ylab("probability of nest being closed") + 
+  theme_bw() +
+  annotate(geom = "point", x = c(20, 22.5, 15), 
+           y = c(0.1367266, 0.1348924, 0.4359303),
+           color = c('darkred', 'cyan2', 'darkorange'),
+           size = 3, shape = 13)
+
+# graph for No.eggs and Closed
+m2 <- ggplot(nests, aes(No.eggs, Closed.)) + 
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"),
+              se=F, color="blue") +
+  xlab("Number of eggs") +
+  ylab("probability of nest being closed") + 
+  theme_bw() +
+  annotate(geom = "point", x = c(4.5, 4.5, 5.0), 
+           y = c(0.1367266, 0.1348924, 0.4359303),
+           color = c('darkred', 'cyan2', 'darkorange'),
+           size = 3, shape = 13)
+
+# graph for Nestling and Closed.
+m3 <- ggplot(nests, aes(Nestling, Closed.)) + 
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), 
+              se=F, color="blue") +
+  xlab("Nestling time") +
+  ylab("Probability of nest being closed") + 
+  theme_bw() +
+  annotate(geom = "point", x = c(15, 16.5, 15.5), 
+           y = c(0.1367266, 0.1348924, 0.4359303),
+           color = c('darkred', 'cyan2', 'darkorange'),
+           size = 3, shape = 13)
+
+logits <- plot_grid(m1, m2, m3, nrow = 1)
+ggdraw(add_sub(logits, "Figure 3: Individual logit plots for each variable included in the final model. 
+               \nFrom the cross-validation exercise, three species that have closed nests are 
+               \npredicted to have open nests by the training model, are plotted above. 
+               \nRed - Myiarchus cinerascens; Cyan - Myiarchus tyrannulus; Orange - Passer domesticus",
+               size = 8))
+```
+
+**Training and Test Sets for Validation**
+
+```{r train_and_test}
+# there are 83 observations in BirdNest
+floor(0.7*nrow(nests))
+# 58 is 70% of the observations
+
+# set seed!
+set.seed(504)
+
+# randomly sample 70% of the observations
+nest_train <- sample(1:83, 58)
+
+# fit the model using train
+glm_train <- glm(Closed. ~ Length + No.eggs + Nestling, data = nests,
+                 subset = nest_train, family = binomial)
+
+# Are the variabels still significant?
+summary(glm_train)
+
+# subset data frame for testing observations
+nest_test <- nests[-nest_train,]
+
+# make predictions for probabilities on nest_test
+probs_test <- predict(glm_train, newdata = nest_test, type = "response")
+
+# remember thre are 25 observationsin the test set
+preds_test <- rep(0, 25)
+preds_test[probs_test > 0.5] <- 1
+
+# make the confusion matrix table
+tb <- table(prediction = preds_test,
+            actual = nest_test$Closed.)
+addmargins(tb)
+
+# ACCURACY - percent all nests correctly classified
+(tb[1, 1] + tb[2,2]) / 25
+
+# SENSITIVITY - closed nests correctly classified
+tb[2,2] / 10
+
+# SPECIFICITY - open nests correctly classified
+tb[1,1] / 15
+
+# Which three CLOSED nests were incorrectly classified as OPEN?
+# first add preds_test column to nest_nest df
+nest_test <- nest_test %>% mutate(predict = preds_test)
+nest_test <- nest_test %>% mutate(probabilty = probs_test)
+# filter for observations with incorrectly classified OPEN nests
+nest_test %>% filter(Closed. == 1 & predict == 0)
+
+
+# compare closed vs open nests by predictors
+nests %>%
+  group_by(Closed.) %>%
+  summarise(meanLength = round(mean(Length), 2),
+            sdLength = round(sd(Length), 2),
+            meanEggs = round(mean(No.eggs), 2),
+            sdEggs = round(sd(No.eggs), 2),
+            meanNest = round(mean(Nestling), 2),
+            sdNest = round(sd(Nestling), 2))
+```
+
+**ROC and AUC Calculations**
+
+```{r ROC_AUC, results = 'hide', message = FALSE, out.width='80%', warning = FALSE}
+# library(pROC)
+roc_obj <- roc(nest_test$Closed., probs_test)
+plot(1 - roc_obj$specificities, roc_obj$sensitivities, type="l",
+xlab = "1 - Specificity", ylab = "Sensitivity")
+# plot red point corresponding to 0.5 threshold:
+abline(0, 1, lty=2) # 1-1 line
+auc(roc_obj)
+```
+
+**Passerine Predictions**
+
+```{r bird_predictions}
+# marsh wren should have a closed nest
+marshwren <- data.frame(Length = 11.95, No.eggs = 5, Nestling = 14)
+predict(glm2, newdata = marshwren, type = "response")
+
+# tree swallow should have a closed nest
+treeswallow <- data.frame(Length = 13, No.eggs = 5.5, Nestling = 20)
+predict(glm2, newdata = treeswallow, type = "response")
+
+# buff-breasted flycatcher should have an open nest
+bbflycatcher <- data.frame(Length = 12.25, No.eggs = 3.4, Nestling = 16)
+predict(glm2, newdata = bbflycatcher, type = "response")
+```
