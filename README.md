@@ -1,2 +1,5 @@
 # Stat632
-Final Code Appendix to Stat632 Group Project. Owners: Bianca Cerna, Shonushka Sawant &amp; Megan McKellar
+Project: Analysis of Bird Nest Characteristics
+Files: Final Code Appendix
+Class: Stat632 
+Authors: Bianca Cerna, Shonushka Sawant &amp; Megan McKellar
